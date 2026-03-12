@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Excel Filter Pro</title>
+<script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:#0D0F13; --surface:#13161C; --surface2:#191D26;
+  --border:#1F2433; --border2:#2A3045;
+  --accent:#3BFFB0; --accent2:#00C88A; --accent-dim:rgba(59,255,176,0.1); --accent-dim2:rgba(59,255,176,0.05);
+  --text:#CDD5E8; --text2:#7D8BA8; --text3:#404A60;
+  --red:#FF5C5C; --red-dim:rgba(255,92,92,0.1);
+  --yellow:#FFD166; --blue:#5B9CF6; --orange:#FF9A3C;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--text);}
+
+/* ── LAYOUT ── */
+.app{display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+
+/* ── HEADER ── */
+.header{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.logo{width:24px;height:24px;background:var(--accent);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.logo svg{width:13px;height:13px;}
+.header-title{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:0.08em;color:var(--text);}
+.header-badge{
+  margin-left:auto;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;
+  padding:2px 8px;border-radius:20px;
+  background:var(--accent-dim);color:var(--accent);
+  border:1px solid rgba(59,255,176,0.2);
+  white-space:nowrap;
+}
+
+/* ── TABS ── */
+.tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface);}
+.tab{
+  flex:1;padding:8px 4px;text-align:center;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;
+  letter-spacing:0.08em;text-transform:uppercase;
+  color:var(--text3);border-bottom:2px solid transparent;
+  cursor:pointer;transition:all 0.15s;
+}
+.tab:hover{color:var(--text2);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* ── SCROLL AREA ── */
+.scroll{flex:1;overflow-y:auto;padding:12px;}
+.scroll::-webkit-scrollbar{width:4px;}
+.scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+
+/* ── SECTION ── */
+.section{margin-bottom:14px;}
+.section-label{
+  font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;
+  letter-spacing:0.18em;text-transform:uppercase;color:var(--text3);
+  margin-bottom:8px;display:flex;align-items:center;gap:8px;
+}
+.section-label .badge{
+  background:var(--accent-dim);color:var(--accent);
+  font-size:9px;padding:1px 6px;border-radius:20px;
+  border:1px solid rgba(59,255,176,0.2);
+}
+
+/* ── SHEET INFO ── */
+.sheet-info{
+  background:var(--surface2);border:1px solid var(--border2);border-radius:6px;
+  padding:10px 12px;display:flex;align-items:center;gap:10px;
+}
+.sheet-icon{color:var(--accent);flex-shrink:0;}
+.sheet-name{font-size:12px;font-weight:500;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sheet-stats{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);flex-shrink:0;}
+
+/* ── PROGRESS ── */
+.progress-wrap{margin-top:8px;}
+.progress-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);margin-bottom:4px;display:flex;justify-content:space-between;}
+.progress-label span{color:var(--accent);}
+.progress-bar{height:3px;background:var(--border2);border-radius:2px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width 0.4s ease;}
+
+/* ── INPUTS ── */
+select,input[type=text],input[type=number],input[type=date]{
+  width:100%;padding:6px 9px;
+  background:var(--bg);border:1px solid var(--border2);border-radius:4px;
+  color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:11px;
+  outline:none;transition:border-color 0.15s;
+}
+select:focus,input:focus{border-color:var(--accent);}
+select option{background:#1A1E28;}
+
+/* ── BUTTONS ── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  padding:7px 12px;border-radius:4px;
+  border:1px solid var(--border2);background:transparent;
+  color:var(--text2);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;
+  letter-spacing:0.05em;cursor:pointer;transition:all 0.15s;white-space:nowrap;
+}
+.btn:hover{border-color:var(--text3);color:var(--text);background:var(--surface2);}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#000;}
+.btn.primary:hover{background:var(--accent2);border-color:var(--accent2);}
+.btn.danger{color:var(--red);}
+.btn.danger:hover{background:var(--red-dim);border-color:var(--red);}
+.btn.full{width:100%;}
+.btn:disabled{opacity:0.35;cursor:not-allowed;}
+.btn svg{width:12px;height:12px;flex-shrink:0;}
+.btn-row{display:flex;gap:6px;}
+.btn-row .btn{flex:1;}
+
+/* ── LOGIC TOGGLE ── */
+.logic-row{display:flex;gap:4px;margin-bottom:10px;}
+.logic-opt{
+  flex:1;padding:5px;border-radius:4px;
+  border:1px solid var(--border2);background:transparent;
+  color:var(--text2);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;
+  cursor:pointer;text-align:center;transition:all 0.15s;
+}
+.logic-opt.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);}
+.logic-opt.or-on{background:rgba(255,209,102,0.1);border-color:var(--yellow);color:var(--yellow);}
+
+/* ── FILTER RULE ── */
+.rule{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:6px;padding:9px 10px;margin-bottom:7px;
+  transition:border-color 0.15s;
+}
+.rule.has-value{border-color:rgba(59,255,176,0.25);}
+.rule-connector{
+  font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;
+  color:var(--yellow);letter-spacing:0.1em;margin-bottom:5px;
+}
+.rule-row{display:flex;gap:5px;align-items:center;margin-bottom:5px;}
+.rule-row:last-child{margin-bottom:0;}
+.rule-del{
+  width:22px;height:22px;flex-shrink:0;
+  border-radius:3px;border:none;background:transparent;
+  color:var(--text3);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;padding:0;
+  transition:all 0.15s;
+}
+.rule-del:hover{background:var(--red-dim);color:var(--red);}
+.rule-del svg{width:11px;height:11px;}
+.add-rule{
+  width:100%;padding:7px;
+  border-radius:4px;border:1.5px dashed var(--border2);
+  background:transparent;color:var(--text3);
+  font-family:'IBM Plex Mono',monospace;font-size:10px;
+  cursor:pointer;transition:all 0.15s;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+}
+.add-rule:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim2);}
+.add-rule svg{width:11px;height:11px;}
+
+/* ── QUICK SEARCH ── */
+.search-wrap{position:relative;}
+.search-wrap svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);width:12px;height:12px;pointer-events:none;}
+.search-wrap input{padding-left:28px;}
+
+/* ── RESULTS TABLE ── */
+.results-header{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 12px;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.results-count{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text2);}
+.results-count span{color:var(--accent);}
+
+.table-wrap{flex:1;overflow:auto;}
+.table-wrap::-webkit-scrollbar{width:5px;height:5px;}
+.table-wrap::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:max-content;}
+thead th{
+  position:sticky;top:0;z-index:5;
+  background:var(--surface);border-bottom:1px solid var(--border2);
+  padding:7px 10px;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;
+  color:var(--text2);text-align:left;white-space:nowrap;
+  cursor:pointer;user-select:none;transition:color 0.1s;
+}
+thead th:hover{color:var(--text);}
+thead th.sorted{color:var(--accent);}
+tbody tr{border-bottom:1px solid var(--border);transition:background 0.08s;}
+tbody tr:hover{background:var(--surface2);}
+tbody td{padding:6px 10px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+td.num{color:var(--blue);font-family:'IBM Plex Mono',monospace;font-size:10px;}
+td.idx{color:var(--text3);font-family:'IBM Plex Mono',monospace;font-size:10px;width:32px;text-align:right;padding-right:8px;}
+.no-match{text-align:center;padding:32px;color:var(--text3);font-family:'IBM Plex Mono',monospace;font-size:11px;}
+
+/* ── COL TOGGLE ── */
+.col-list{display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto;}
+.col-list::-webkit-scrollbar{width:3px;}
+.col-list::-webkit-scrollbar-thumb{background:var(--border2);}
+.col-item{
+  display:flex;align-items:center;gap:7px;
+  padding:4px 6px;border-radius:3px;cursor:pointer;
+  font-size:11px;color:var(--text2);transition:background 0.1s;
+  user-select:none;
+}
+.col-item:hover{background:var(--surface2);}
+.col-item input[type=checkbox]{accent-color:var(--accent);cursor:pointer;flex-shrink:0;}
+.col-type{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text3);}
+
+/* ── STATUS BAR ── */
+.status-bar{
+  padding:6px 12px;border-top:1px solid var(--border);
+  background:var(--surface);flex-shrink:0;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;
+  color:var(--text3);display:flex;align-items:center;gap:8px;
+}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;}
+.status-dot.ok{background:var(--accent);}
+.status-dot.loading{background:var(--yellow);animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+
+/* ── TOAST ── */
+.toast-wrap{position:fixed;bottom:12px;right:12px;z-index:9999;display:flex;flex-direction:column;gap:6px;pointer-events:none;}
+.toast{
+  padding:8px 14px;border-radius:5px;border:1px solid;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;
+  display:flex;align-items:center;gap:7px;pointer-events:all;
+  animation:slideIn 0.2s ease;
+}
+.toast.ok{background:#0A1F18;border-color:var(--accent);color:var(--accent);}
+.toast.err{background:#1F0A0A;border-color:var(--red);color:var(--red);}
+@keyframes slideIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* ── EMPTY / LOADING ── */
+.center-state{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;padding:40px 20px;text-align:center;
+}
+.center-icon{opacity:0.2;}
+.center-title{font-size:13px;font-weight:500;color:var(--text2);}
+.center-sub{font-size:11px;color:var(--text3);line-height:1.6;max-width:220px;}
+.spinner{
+  width:24px;height:24px;border:2px solid var(--border2);
+  border-top-color:var(--accent);border-radius:50%;
+  animation:spin 0.7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- Loading state shown until Office.js ready -->
+  <div class="center-state" id="loadingState">
+    <div class="spinner"></div>
+    <div class="center-title">Connecting to Excel…</div>
+    <div class="center-sub">Waiting for Office.js to initialize</div>
+  </div>
+
+  <!-- Main UI (hidden until ready) -->
+  <div id="mainUI" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+
+    <!-- HEADER -->
+    <div class="header">
+      <div class="logo">
+        <svg viewBox="0 0 13 13" fill="none"><rect x="1" y="1" width="4.5" height="4.5" rx="0.8" fill="#000"/><rect x="7.5" y="1" width="4.5" height="4.5" rx="0.8" fill="#000"/><rect x="1" y="7.5" width="4.5" height="4.5" rx="0.8" fill="#000"/><rect x="7.5" y="7.5" width="4.5" height="4.5" rx="0.8" fill="#000"/></svg>
+      </div>
+      <span class="header-title">FILTER PRO</span>
+      <div class="header-badge" id="matchBadge">— rows</div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('filter')" id="tabFilter">Filters</div>
+      <div class="tab" onclick="switchTab('columns')" id="tabColumns">Columns</div>
+      <div class="tab" onclick="switchTab('results')" id="tabResults">Preview</div>
+    </div>
+
+    <!-- ─ TAB: FILTERS ─ -->
+    <div id="panelFilter" class="scroll">
+
+      <!-- Sheet info -->
+      <div class="section">
+        <div class="section-label">Active Sheet</div>
+        <div class="sheet-info">
+          <svg class="sheet-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2" width="14" height="14" rx="2"/><path d="M2 6h14M6 6v10"/></svg>
+          <div>
+            <div class="sheet-name" id="sheetName">—</div>
+            <div class="sheet-stats" id="sheetStats" style="margin-top:2px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);">—</div>
+          </div>
+          <button class="btn" onclick="loadSheetData()" title="Refresh data" style="padding:4px 8px;margin-left:auto;flex-shrink:0;">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 7a5 5 0 1 0 1-3M2 2v3h3"/></svg>
+          </button>
+        </div>
+        <div class="progress-wrap" id="progressWrap" style="display:none;">
+          <div class="progress-label">Filtered <span id="progressText">0 / 0</span></div>
+          <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <!-- Quick search -->
+      <div class="section">
+        <div class="section-label">Quick Search</div>
+        <div class="search-wrap">
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5.5" cy="5.5" r="3.5"/><path d="M9 9l3 3"/></svg>
+          <input type="text" id="quickSearch" placeholder="Search all columns…" oninput="applyFilters()"/>
+        </div>
+      </div>
+
+      <!-- Logic -->
+      <div class="section">
+        <div class="section-label">Filter Rules <div class="badge" id="ruleCountBadge">0</div></div>
+        <div class="logic-row">
+          <button class="logic-opt active" id="logicAND" onclick="setLogic('AND')">AND</button>
+          <button class="logic-opt" id="logicOR" onclick="setLogic('OR')">OR</button>
+        </div>
+        <div id="filterRules"></div>
+        <button class="add-rule" id="addRuleBtn" onclick="addRule()" disabled>
+          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2v8M2 6h8"/></svg>
+          Add filter rule
+        </button>
+      </div>
+
+      <!-- Actions -->
+      <div class="section">
+        <div class="btn-row" style="margin-bottom:8px;">
+          <button class="btn primary" onclick="applyToExcel()">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 7l3 3 7-6"/></svg>
+            Apply to Sheet
+          </button>
+          <button class="btn" onclick="clearFilters()">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2l10 10M12 2L2 12"/></svg>
+            Clear
+          </button>
+        </div>
+        <div class="btn-row">
+          <button class="btn" onclick="exportFiltered('xlsx')">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 10l4 3 4-3M7 13V7"/><rect x="2" y="2" width="10" height="6" rx="1"/></svg>
+            Export XLSX
+          </button>
+          <button class="btn" onclick="exportFiltered('csv')">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 10l4 3 4-3M7 13V7"/><rect x="2" y="2" width="10" height="6" rx="1"/></svg>
+            Export CSV
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ─ TAB: COLUMNS ─ -->
+    <div id="panelColumns" class="scroll" style="display:none;">
+      <div class="section">
+        <div class="section-label">
+          Column Visibility
+          <div style="margin-left:auto;display:flex;gap:5px;">
+            <button class="btn" style="padding:2px 7px;font-size:9px;" onclick="toggleAllCols(true)">All</button>
+            <button class="btn" style="padding:2px 7px;font-size:9px;" onclick="toggleAllCols(false)">None</button>
+          </div>
+        </div>
+        <div class="col-list" id="colList"></div>
+      </div>
+    </div>
+
+    <!-- ─ TAB: RESULTS ─ -->
+    <div id="panelResults" style="display:none;flex:1;flex-direction:column;overflow:hidden;min-height:0;">
+      <div class="results-header">
+        <div class="results-count">Showing <span id="resultCount">0</span> rows</div>
+        <button class="btn" style="margin-left:auto;padding:4px 8px;" onclick="applyFilters()">
+          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2l8 8M10 2L2 10"/></svg>
+          Refresh
+        </button>
+      </div>
+      <div class="table-wrap">
+        <table id="previewTable">
+          <thead id="previewHead"></thead>
+          <tbody id="previewBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- STATUS BAR -->
+    <div class="status-bar">
+      <div class="status-dot ok" id="statusDot"></div>
+      <span id="statusText">Ready</span>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ─── State ─────────────────────────────────────────────────────────────────
+let rawData = [];
+let headers = [];
+let colTypes = {};
+let hiddenCols = new Set();
+let filterRules = [];
+let filterLogic = 'AND';
+let filteredData = [];
+let sortCol = null;
+let sortDir = 1;
+let currentSheet = '';
+let activeTab = 'filter';
+
+const TEXT_OPS  = ['contains','not contains','equals','not equals','starts with','ends with','is empty','is not empty'];
+const NUM_OPS   = ['equals','not equals','greater than','less than','greater or equal','less or equal','between','is empty','is not empty'];
+const DATE_OPS  = ['equals','before','after','between','is empty','is not empty'];
+const NO_VAL    = ['is empty','is not empty'];
+
+// ─── Office.js Init ─────────────────────────────────────────────────────────
+Office.onReady((info) => {
+  if (info.host === Office.HostType.Excel) {
+    document.getElementById('loadingState').style.display = 'none';
+    const ui = document.getElementById('mainUI');
+    ui.style.display = 'flex';
+    loadSheetData();
+    // Auto-refresh when sheet selection changes
+    Office.context.document.addHandlerAsync(
+      Office.EventType.DocumentSelectionChanged,
+      debounce(onSelectionChange, 600)
+    );
+  } else {
+    document.getElementById('loadingState').innerHTML = `
+      <div class="center-icon"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="#3BFFB0" stroke-width="1.2"><path d="M10 20 L20 10 L30 20 L20 30 Z"/></svg></div>
+      <div class="center-title">Open in Excel</div>
+      <div class="center-sub">This add-in must be opened inside Excel Online or Excel Desktop.</div>`;
+  }
+});
+
+function debounce(fn, ms) {
+  let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+}
+
+let lastSheetName = '';
+async function onSelectionChange() {
+  try {
+    await Excel.run(async (ctx) => {
+      const ws = ctx.workbook.worksheets.getActiveWorksheet();
+      ws.load('name');
+      await ctx.sync();
+      if (ws.name !== lastSheetName) {
+        lastSheetName = ws.name;
+        await loadSheetData();
+      }
+    });
+  } catch(e) {}
+}
+
+// ─── Load Sheet Data ─────────────────────────────────────────────────────────
+async function loadSheetData() {
+  setStatus('loading', 'Loading sheet data…');
+  try {
+    await Excel.run(async (ctx) => {
+      const ws = ctx.workbook.worksheets.getActiveWorksheet();
+      ws.load('name');
+      const used = ws.getUsedRange();
+      used.load(['values','rowCount','columnCount']);
+      await ctx.sync();
+
+      currentSheet = ws.name;
+      lastSheetName = ws.name;
+      document.getElementById('sheetName').textContent = ws.name;
+
+      const vals = used.values;
+      if (!vals || vals.length < 2) {
+        setStatus('ok', 'Sheet is empty');
+        rawData = []; headers = [];
+        renderColList();
+        applyFilters();
+        return;
+      }
+
+      headers = vals[0].map((h, i) => h !== '' ? String(h) : `Col_${i+1}`);
+      rawData = [];
+      for (let r = 1; r < vals.length; r++) {
+        const row = {};
+        headers.forEach((h, c) => row[h] = vals[r][c] ?? '');
+        rawData.push(row);
+      }
+
+      detectTypes();
+      hiddenCols = new Set();
+      filterRules = [];
+      sortCol = null;
+
+      document.getElementById('sheetStats').textContent = `${rawData.length.toLocaleString()} rows · ${headers.length} columns`;
+      document.getElementById('addRuleBtn').disabled = false;
+      renderColList();
+      renderRules();
+      applyFilters();
+      setStatus('ok', `Loaded: ${ws.name}`);
+      showToast(`Loaded ${rawData.length.toLocaleString()} rows from "${ws.name}"`, 'ok');
+    });
+  } catch(err) {
+    setStatus('ok', 'Error loading data');
+    showToast('Error: ' + err.message, 'err');
+  }
+}
+
+function detectTypes() {
+  colTypes = {};
+  headers.forEach(h => {
+    const vals = rawData.map(r => r[h]).filter(v => v !== '' && v !== null && v !== undefined);
+    if (!vals.length) { colTypes[h] = 'text'; return; }
+    const nums = vals.filter(v => !isNaN(Number(v)));
+    if (nums.length / vals.length > 0.75) { colTypes[h] = 'number'; return; }
+    const dates = vals.filter(v => typeof v === 'string' && !isNaN(Date.parse(v)) && v.includes('-'));
+    if (dates.length / vals.length > 0.6) { colTypes[h] = 'date'; return; }
+    colTypes[h] = 'text';
+  });
+}
+
+// ─── Filter Logic ─────────────────────────────────────────────────────────────
+function applyFilters() {
+  const qs = (document.getElementById('quickSearch')?.value || '').toLowerCase();
+  const visH = headers.filter(h => !hiddenCols.has(h));
+  const active = filterRules.filter(r => r.col && (r.val1 !== '' || NO_VAL.includes(r.op)));
+
+  filteredData = rawData.filter(row => {
+    if (qs) {
+      const found = visH.some(h => String(row[h] ?? '').toLowerCase().includes(qs));
+      if (!found) return false;
+    }
+    if (!active.length) return true;
+    if (filterLogic === 'AND') return active.every(r => matchRule(row, r));
+    return active.some(r => matchRule(row, r));
+  });
+
+  if (sortCol !== null && headers[sortCol]) {
+    const h = headers[sortCol];
+    filteredData.sort((a, b) => {
+      const va = a[h], vb = b[h];
+      if (va === '' || va === null) return 1;
+      if (vb === '' || vb === null) return -1;
+      if (colTypes[h] === 'number') return (Number(va) - Number(vb)) * sortDir;
+      return String(va).localeCompare(String(vb)) * sortDir;
+    });
+  }
+
+  const pct = rawData.length ? (filteredData.length / rawData.length * 100).toFixed(0) : 0;
+  document.getElementById('matchBadge').textContent = `${filteredData.length.toLocaleString()} rows`;
+  if (rawData.length) {
+    document.getElementById('progressWrap').style.display = 'block';
+    document.getElementById('progressText').textContent = `${filteredData.length.toLocaleString()} / ${rawData.length.toLocaleString()}`;
+    document.getElementById('progressFill').style.width = pct + '%';
+  }
+  document.getElementById('resultCount').textContent = filteredData.length.toLocaleString();
+  document.getElementById('ruleCountBadge').textContent = active.length;
+  if (activeTab === 'results') renderPreview();
+}
+
+function matchRule(row, rule) {
+  const val = row[rule.col];
+  const type = colTypes[rule.col] || 'text';
+  const op = rule.op, v1 = rule.val1, v2 = rule.val2;
+  const empty = val === '' || val === null || val === undefined;
+  if (op === 'is empty') return empty;
+  if (op === 'is not empty') return !empty;
+  if (empty) return false;
+  if (type === 'text') {
+    const s = String(val).toLowerCase(), f = String(v1).toLowerCase();
+    if (op === 'contains') return s.includes(f);
+    if (op === 'not contains') return !s.includes(f);
+    if (op === 'equals') return s === f;
+    if (op === 'not equals') return s !== f;
+    if (op === 'starts with') return s.startsWith(f);
+    if (op === 'ends with') return s.endsWith(f);
+  }
+  if (type === 'number') {
+    const n = Number(val), f1 = Number(v1), f2 = Number(v2);
+    if (op === 'equals') return n === f1;
+    if (op === 'not equals') return n !== f1;
+    if (op === 'greater than') return n > f1;
+    if (op === 'less than') return n < f1;
+    if (op === 'greater or equal') return n >= f1;
+    if (op === 'less or equal') return n <= f1;
+    if (op === 'between') return n >= f1 && n <= f2;
+  }
+  if (type === 'date') {
+    const d = new Date(val), d1 = new Date(v1), d2 = new Date(v2);
+    if (op === 'equals') return d.toDateString() === d1.toDateString();
+    if (op === 'before') return d < d1;
+    if (op === 'after') return d > d1;
+    if (op === 'between') return d >= d1 && d <= d2;
+  }
+  return true;
+}
+
+// ─── Apply to Excel (hide/show rows) ─────────────────────────────────────────
+async function applyToExcel() {
+  if (!rawData.length) { showToast('No data loaded', 'err'); return; }
+  setStatus('loading', 'Applying filters to sheet…');
+  try {
+    const matchedIndices = new Set(filteredData.map(r => rawData.indexOf(r)));
+    await Excel.run(async (ctx) => {
+      const ws = ctx.workbook.worksheets.getActiveWorksheet();
+      const used = ws.getUsedRange();
+      used.load('rowCount');
+      await ctx.sync();
+      // Row 0 = header, rows 1..N = data
+      for (let i = 0; i < rawData.length; i++) {
+        const excelRow = ws.getRangeByIndexes(i + 1, 0, 1, headers.length);
+        excelRow.rowHidden = !matchedIndices.has(i);
+      }
+      await ctx.sync();
+    });
+    setStatus('ok', `${filteredData.length} rows visible`);
+    showToast(`Applied: ${filteredData.length} rows visible, ${rawData.length - filteredData.length} hidden`, 'ok');
+  } catch(err) {
+    setStatus('ok', 'Error applying');
+    showToast('Error: ' + err.message, 'err');
+  }
+}
+
+// ─── Export ──────────────────────────────────────────────────────────────────
+function exportFiltered(fmt) {
+  if (!filteredData.length) { showToast('Nothing to export', 'err'); return; }
+  const visH = headers.filter(h => !hiddenCols.has(h));
+  const rows = filteredData.map(r => { const o={}; visH.forEach(h => o[h]=r[h]??''); return o; });
+  const ws = XLSX.utils.json_to_sheet(rows, { header: visH });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Filtered');
+  XLSX.writeFile(wb, `${currentSheet || 'export'}_filtered.${fmt}`, fmt === 'csv' ? { bookType:'csv' } : {});
+  showToast(`Exported ${rows.length} rows`, 'ok');
+}
+
+// ─── Rules UI ────────────────────────────────────────────────────────────────
+function renderRules() {
+  const el = document.getElementById('filterRules');
+  el.innerHTML = filterRules.map((r, i) => {
+    const ops = getOps(colTypes[r.col] || 'text');
+    const needsVal = !NO_VAL.includes(r.op);
+    const is2Val = r.op === 'between';
+    const inType = colTypes[r.col]==='number' ? 'number' : colTypes[r.col]==='date' ? 'date' : 'text';
+    return `<div class="rule ${r.val1||NO_VAL.includes(r.op)?'has-value':''}" id="rule${i}">
+      ${i > 0 ? `<div class="rule-connector">${filterLogic}</div>` : ''}
+      <div class="rule-row">
+        <select onchange="updateRule(${i},'col',this.value)" style="flex:1;">
+          ${headers.map(h=>`<option value="${e(h)}" ${r.col===h?'selected':''}>${h}</option>`).join('')}
+        </select>
+        <button class="rule-del" onclick="removeRule(${i})">
+          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2l8 8M10 2L2 10"/></svg>
+        </button>
+      </div>
+      <div class="rule-row">
+        <select onchange="updateRule(${i},'op',this.value)">
+          ${ops.map(op=>`<option ${r.op===op?'selected':''}>${op}</option>`).join('')}
+        </select>
+      </div>
+      ${needsVal ? `<div class="rule-row">
+        <input type="${inType}" placeholder="${is2Val?'Min':'Value'}" value="${r.val1||''}" oninput="updateRule(${i},'val1',this.value)" style="${is2Val?'flex:1;margin-right:4px;':''}"/>
+        ${is2Val ? `<input type="${inType}" placeholder="Max" value="${r.val2||''}" oninput="updateRule(${i},'val2',this.value)" style="flex:1;"/>` : ''}
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function addRule() {
+  if (!headers.length) return;
+  filterRules.push({ col: headers[0], op: getOps(colTypes[headers[0]]||'text')[0], val1:'', val2:'' });
+  renderRules(); applyFilters();
+}
+function removeRule(i) { filterRules.splice(i,1); renderRules(); applyFilters(); }
+function updateRule(i, field, val) {
+  if (field === 'col') {
+    filterRules[i] = { col:val, op:getOps(colTypes[val]||'text')[0], val1:'', val2:'' };
+    renderRules();
+  } else {
+    filterRules[i][field] = val;
+  }
+  applyFilters();
+}
+function setLogic(l) {
+  filterLogic = l;
+  document.getElementById('logicAND').className = 'logic-opt'+(l==='AND'?' active':'');
+  document.getElementById('logicOR').className = 'logic-opt'+(l==='OR'?' active or-on':'');
+  renderRules(); applyFilters();
+}
+function clearFilters() {
+  filterRules = [];
+  document.getElementById('quickSearch').value = '';
+  renderRules(); applyFilters();
+  // Also unhide all rows in Excel
+  Excel.run(async ctx => {
+    const ws = ctx.workbook.worksheets.getActiveWorksheet();
+    const used = ws.getUsedRange();
+    used.load('rowCount');
+    await ctx.sync();
+    for (let i = 1; i < used.rowCount; i++) {
+      ws.getRangeByIndexes(i, 0, 1, headers.length).rowHidden = false;
+    }
+    await ctx.sync();
+  }).catch(()=>{});
+}
+function getOps(t) { return t==='number'?NUM_OPS:t==='date'?DATE_OPS:TEXT_OPS; }
+function e(s) { return s.replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+
+// ─── Columns UI ──────────────────────────────────────────────────────────────
+function renderColList() {
+  document.getElementById('colList').innerHTML = headers.map(h =>
+    `<label class="col-item">
+      <input type="checkbox" ${hiddenCols.has(h)?'':'checked'} onchange="toggleCol('${e(h)}',this.checked)"/>
+      <span>${h}</span>
+      <span class="col-type">${colTypes[h]||'text'}</span>
+    </label>`
+  ).join('');
+}
+function toggleCol(h, v) { v ? hiddenCols.delete(h) : hiddenCols.add(h); applyFilters(); }
+function toggleAllCols(v) {
+  v ? hiddenCols.clear() : headers.forEach(h => hiddenCols.add(h));
+  document.querySelectorAll('#colList input').forEach(cb => cb.checked = v);
+  applyFilters();
+}
+
+// ─── Preview Table ────────────────────────────────────────────────────────────
+function renderPreview() {
+  const visH = headers.filter(h => !hiddenCols.has(h));
+  const qs = document.getElementById('quickSearch')?.value || '';
+  const rows = filteredData.slice(0, 200);
+
+  document.getElementById('previewHead').innerHTML = `<tr>
+    <th style="width:28px;">#</th>
+    ${visH.map((h,i)=>{
+      const ci = headers.indexOf(h);
+      const s = sortCol===ci;
+      return `<th class="${s?'sorted':''}" onclick="sortPreview(${ci})">${h}${s?(sortDir===1?' ↑':' ↓'):''}</th>`;
+    }).join('')}
+  </tr>`;
+
+  document.getElementById('previewBody').innerHTML = rows.length
+    ? rows.map((row,ri) => `<tr>
+        <td class="idx">${ri+1}</td>
+        ${visH.map(h => {
+          const v = row[h] ?? '';
+          const isN = colTypes[h]==='number' && v !== '';
+          let d = String(v);
+          if (qs && d.toLowerCase().includes(qs.toLowerCase())) {
+            const re = new RegExp('('+qs.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+            d = d.replace(re,'<span style="background:rgba(59,255,176,0.2);border-radius:2px;padding:0 1px;">$1</span>');
+          }
+          return `<td class="${isN?'num':''}">${d}</td>`;
+        }).join('')}
+      </tr>`).join('')
+    : `<tr><td colspan="${visH.length+1}" class="no-match">No rows match</td></tr>`;
+}
+
+function sortPreview(ci) {
+  if (sortCol === ci) sortDir *= -1; else { sortCol = ci; sortDir = 1; }
+  applyFilters();
+  if (activeTab === 'results') renderPreview();
+}
+
+// ─── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  activeTab = tab;
+  ['filter','columns','results'].forEach(t => {
+    document.getElementById('tab'+cap(t)).className = 'tab'+(t===tab?' active':'');
+    const p = document.getElementById('panel'+cap(t));
+    p.style.display = t===tab ? (t==='results'?'flex':'block') : 'none';
+  });
+  if (tab === 'results') renderPreview();
+}
+function cap(s) { return s.charAt(0).toUpperCase()+s.slice(1); }
+
+// ─── Status / Toast ───────────────────────────────────────────────────────────
+function setStatus(state, msg) {
+  document.getElementById('statusDot').className = 'status-dot'+(state==='loading'?' loading':' ok');
+  document.getElementById('statusText').textContent = msg;
+}
+function showToast(msg, type='ok') {
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">${type==='ok'?'<path d="M2 6l2.5 2.5L10 4"/>':'<path d="M2 2l8 8M10 2L2 10"/>'}</svg>${msg}`;
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+</script>
+</body>
+</html>
